@@ -29,7 +29,7 @@ jupyter: python3
 ---
 
 
-## 기본 정보
+## 
 
 * 다음과 같이 비행장 데이터 'flights, planes를 불러오겠습니다.
 
