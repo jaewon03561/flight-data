@@ -1,157 +1,69 @@
+from nycflights13 import flights, planes, weather
 import pandas as pd
-import numpy as np
-from nycflights13 import flights, planes
-import pandas as pd
-air_line= pd.merge(flights,planes, on = "tailnum", how= "left")
-air_line.head()
+flights_weather = pd.merge(flights, weather, on = ["year", "month", "day", "hour", "origin"], how = "inner")
+
+flights_weather["origin"]
 
 
 
-##### 계절별 출발 딜레이 시간 상관관계 분석 ######
-
-import numpy as np
-import pandas as pd
-
-# 계절 컬럼 추가
-conditions = [
-    (air_line["month"].isin([12, 1, 2])),  # 겨울
-    (air_line["month"].isin([3, 4, 5])),   # 봄
-    (air_line["month"].isin([6, 7, 8])),   # 여름
-    (air_line["month"].isin([9, 10, 11]))  # 가을
-]
-
-season_labels = ["Winter", "Spring", "Summer", "Autumn"]
-
-air_line["season"] = np.select(conditions, season_labels, default="Unknown")
 
 
-season_delay = air_line.groupby("season")["dep_delay"].mean().reset_index()
+## 비행기 운항 시, 지연에 영향을 미치는 요소를 살펴보기
+# 풍속이 높을 수록, 비행기 딜레이 지연시간이 높을듯.
 
 
-import seaborn as sns
-import matplotlib.pyplot as plt
-
-# 시각화
-plt.figure(figsize=(8, 6))
-sns.barplot(data=season_delay, x="season", y="dep_delay", palette="coolwarm")
-
-# 제목 및 레이블 설정
-plt.title("Average Flight Delay by Season")
-plt.xlabel("Season")
-plt.ylabel("Average Departure Delay (minutes)")
-plt.show()
-
-###################################################
-
-
-
-## 데이터 1
-### 계절과 딜레이 시간이 관계가 있을 것이다. ###
-### 시즌이라는 데이터를 만들어서 한번 해보자 ###
-
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-dep_delay_avg = air_line.groupby("month")["dep_delay"].mean()
-plt.bar(dep_delay_avg.index, dep_delay_avg)
-plt.ylabel('delay')
-plt.xlabel("month") 
-plt.show()
-
-arr_delay_avg = air_line.groupby("month")["arr_delay"].mean(numeric_only= True)
-plt.scatter(arr_delay_avg.index, arr_delay_avg)
-plt.ylabel('delay')
-plt.xlabel("month") 
-plt.show()
-
-import matplotlib.pyplot as plt
-
-import matplotlib.pyplot as plt
-plt.plot([1,2,3,4], [1,4,9,16], "ro")
-
-
-import numpy as np
-data = {
-    "x" : np.arange(50),
-    "y" : np.random.randn(50) * 10
-}
-
-plt.scatter('x', 'y', data = data)
-
-
-## 좌석수와 출발, 도착시간 딜레이간의 딜레이가 있을것이다. 
-air_line["carrier"].unique()
-
-corr_mat = air_line[["seats", "dep_delay", "arr_delay"]].corr()
-
-plt.figure(figsize= (6,5))
-sns.heatmap(corr_mat,
-            annot = True, cmap = "coolwarm",
-            fmt = ".2f", linewidths = 0.5)
-plt.show()
-
-# 0.91 출발시간의 딜레이와 도착시간의 딜레이가 연관있을 듯
-plt.figure(figsize=(6,5))
-sns.scatterplot(data= air_line,
-                x = "arr_delay", y = "dep_delay")
-plt.xlabel("arr_delay")
-plt.ylabel("dep_delay")
-plt.show
-
-
-## 엔진개수에 따른 비행거리의 상관관계 ##
-import matplotlib.pyplot as plt
-import seaborn as sns
+## 공항별 풍속이 많을 수록 딜레이 시간이 적을 것이다. ##
 
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# 공항별 평균 풍속과 딜레이 정렬
+windspeed_avg = flights_weather.groupby("origin")["wind_speed"].mean().sort_values()
+arr_delay_origin = flights_weather.groupby("origin")["arr_delay"].mean().reindex(windspeed_avg.index)
 
-### 산점도로 가보자 ###
-plt.figure((8,5))
-sns.scatterplot(data=air_line, x= "engines", y = "distance", alpha = 0.5)
-plt.xlabel("Number of Engines")  # x축 라벨
-plt.ylabel("Flight Distance") 
+fig, ax1 = plt.subplots(figsize=(8,5))
+
+# 막대 그래프로 풍속 시각화 (왼쪽 y축)
+ax1.bar(windspeed_avg.index, windspeed_avg, color='skyblue', alpha=0.7, label="Avg Wind Speed")
+ax1.set_ylabel("Average Wind Speed (mph)", color='blue')
+ax1.tick_params(axis='y', labelcolor='blue')
+
+# 선 그래프로 지연 시간 시각화 (오른쪽 y축)
+ax2 = ax1.twinx()
+ax2.plot(arr_delay_origin.index, arr_delay_origin, 'ro-', label="Avg arrive Delay")
+ax2.set_ylabel("Average Departure Delay (min)", color='red')
+ax2.tick_params(axis='y', labelcolor='red')
+
+# 제목 및 레이아웃 조정
+plt.title("Average Wind Speed vs Departure Delay by Airport")
+ax1.set_xlabel("Airport")
+ax1.legend(loc='upper left')
+ax2.legend(loc='upper right')
+
 plt.show()
 
-### 막대 차트로 ###
-engine_distance = air_line.groupby("engines")["distance"].mean().reset_index()
-plt.figure(figsize=(8, 5))
-sns.barplot(data = engine_distance, x = "engines", y = "distance", palette= "Pastel1")
-plt.show()
+## 바람의 흐름과 속도는 운항시간에 영향을 미치는 대표적인 요소로 볼 수 있음.
+
+# EWR의 경우 다른 공항대비 높은 풍속을 가진것을 보여줌.
+
+weather_EWR = flights_weather.loc[flights_weather["origin"] == "EWR", :]
+weather_JFK = flights_weather.loc[flights_weather["origin"] == "JFK", :]
+weather_LGA = flights_weather.loc[flights_weather["origin"] == "LGA", :]
+
+## 공항에서 비행기 결항과 관련된 풍속은 평균 25KT이상, 최대 35KT이상인 경우를 뜻함.
+
+sum(weather_EWR["wind_speed"] >= 35) # 60
+
+sum(weather_JFK["wind_speed"] >= 35) # 97
+
+sum(weather_LGA["wind_speed"] >= 35) # 23
 
 
+## 공항에서 딜레이 시간의 비율
+weather_EWR["arr_delay"].sort_values(ascending= False)
+weather_EWR["wind_speed"].sort_values(ascending= False)
 
-
-### 여름에 이용객이 많은건지
-## 단지 여름이어서 그런건지
-
-air_line.columns
-
-
-## 가설 1 여름의 경우 비행기의 좌석 수(이용객이)가 더 많을 것인가?
-summer_seat = air_line.loc[air_line["season"] == "Summer","seats"].mean()
-winter_seat = air_line.loc[air_line["season"] == "Winter","seats"].mean()
-spring_seat = air_line.loc[air_line["season"] == "Spring","seats"].mean()
-autumn_seat = air_line.loc[air_line["season"] == "Autumn","seats"].mean()
-
-
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-# 계절별 평균 좌석 수 데이터프레임 생성
-seat_avg_df = pd.DataFrame({
-    "season": ["Summer", "Winter", "Spring", "Autumn"],
-    "seats": [summer_seat, winter_seat, spring_seat, autumn_seat]
-})
-
-# 바 차트 그리기
-plt.figure(figsize=(8,5))
-sns.barplot(data=seat_avg_df, x="season", y="seats", palette="coolwarm")  # y="seats"로 수정
-plt.title("Average Number of Seats by Season")
-plt.xlabel("Season")
-plt.ylabel("Average Seats")
-plt.show()
-
+weather_EWR.iloc[8187,:] # EV
+weather_EWR.iloc[86926,:] # EV
+weather_EWR.iloc[194422,:] 

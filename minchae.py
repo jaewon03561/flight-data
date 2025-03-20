@@ -53,6 +53,10 @@ def replace_airport_code(row):
 flights_weather['airport'] = flights_weather['origin'].apply(replace_airport_code)
 
 
+
+### 날씨와 생산년도 ##
+
+
 # 공항별 날씨 데이터
 weather_EWR = weather.loc[weather['origin'] == 'EWR', :]
 weather_JFK = weather.loc[weather['origin'] == 'JFK', :]
